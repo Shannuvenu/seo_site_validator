@@ -1,0 +1,42 @@
+.ss-report {
+  max-width: 1000px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  padding: 10px;
+}
+
+.tree-node {
+  font-size: 13.5px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tree-row:hover {
+  background: rgba(59, 130, 246, 0.07);
+}
+
+.tree-caret {
+  width: 14px;
+  color: var(--text-faint);
+}
+
+.tree-name {
+  font-weight: 500;
+}
+
+.tree-slug {
+  color: var(--accent);
+}
+
+.tree-id {
+  font-size: 11px;
+  margin-left: auto;
+}
