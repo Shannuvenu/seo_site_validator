@@ -1156,8 +1156,16 @@ class DataLayerService:
         except Exception as exc:  # noqa: BLE001
             session.status = "error"
             session.error = f"{type(exc).__name__}: {exc}"
-            await self.close(sid)
-        return session
+
+            import logging
+            logging.exception(
+                "DATA LAYER START FAILED | session=%s | url=%s",
+                sid,
+                safe_url,
+            )
+
+            # Keep the session alive so the API can report the real error.
+            return session
 
     # ------------------------------------------------------------------
     def _start_sweep(self, session_id: str, interval_seconds: float = 0.8) -> None:
