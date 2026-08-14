@@ -878,9 +878,14 @@ class DataLayerService:
             playwright = await async_playwright().start()
             session.playwright = playwright
             browser = await playwright.chromium.launch(
-                headless=headless,
-                args=["--disable-blink-features=AutomationControlled"],
-            )
+    headless=headless,
+    args=[
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+    ],
+)
             session.browser = browser
             context = await browser.new_context(
                 user_agent=(
