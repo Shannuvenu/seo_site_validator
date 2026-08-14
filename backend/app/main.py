@@ -1,3 +1,4 @@
+```python
 """FastAPI application entry point.
 
 Serves the REST API plus (optionally) the built React frontend from
@@ -27,24 +28,37 @@ app = FastAPI(
     ),
 )
 
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
+# Local development + deployed Vercel frontend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:4173",
+        "https://seo-site-validator.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ---------------------------------------------------------------------------
+# API routes
+# ---------------------------------------------------------------------------
 app.include_router(api_router, prefix="/api")
 
 
-# Serve the built React frontend (production mode) when frontend/dist exists.
-# The root route then returns the SPA; without a build, it returns API info.
+# ---------------------------------------------------------------------------
+# Optional production frontend
+# ---------------------------------------------------------------------------
+# If frontend/dist exists, FastAPI can serve the built React frontend.
+# In the current deployment architecture, Vercel serves the frontend
+# separately, while Render serves this FastAPI backend.
 _dist = Path(FRONTEND_DIST)
+
 if _dist.exists() and (_dist / "index.html").exists():
     from fastapi.responses import FileResponse
 
@@ -52,9 +66,19 @@ if _dist.exists() and (_dist / "index.html").exists():
     async def serve_index():
         return FileResponse(str(_dist / "index.html"))
 
-    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="frontend")
+    app.mount(
+        "/",
+        StaticFiles(directory=str(_dist), html=True),
+        name="frontend",
+    )
+
 else:
 
     @app.get("/")
     async def root():
-        return {"name": "SEO & Structured Data Health Check", "docs": "/docs", "health": "/api/health"}
+        return {
+            "name": "SEO & Structured Data Health Check",
+            "docs": "/docs",
+            "health": "/api/health",
+        }
+```
