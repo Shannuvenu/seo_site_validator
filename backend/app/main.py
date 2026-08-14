@@ -1,10 +1,10 @@
-```python
 """FastAPI application entry point.
 
 Serves the REST API plus (optionally) the built React frontend from
 frontend/dist when present — the frontend also works standalone with Vite dev
 server + CORS.
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,10 +28,6 @@ app = FastAPI(
     ),
 )
 
-# ---------------------------------------------------------------------------
-# CORS
-# ---------------------------------------------------------------------------
-# Local development + deployed Vercel frontend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -45,18 +41,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# API routes
-# ---------------------------------------------------------------------------
 app.include_router(api_router, prefix="/api")
 
-
-# ---------------------------------------------------------------------------
-# Optional production frontend
-# ---------------------------------------------------------------------------
-# If frontend/dist exists, FastAPI can serve the built React frontend.
-# In the current deployment architecture, Vercel serves the frontend
-# separately, while Render serves this FastAPI backend.
 _dist = Path(FRONTEND_DIST)
 
 if _dist.exists() and (_dist / "index.html").exists():
@@ -81,4 +67,3 @@ else:
             "docs": "/docs",
             "health": "/api/health",
         }
-```
