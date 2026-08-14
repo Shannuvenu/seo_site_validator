@@ -56,7 +56,9 @@ async def start_capture(request: DataLayerStartRequest) -> DataLayerStartRespons
         click_selector=request.click_selector,
         headless=request.headless if request.headless is not None else True,
     )
-    return DataLayerStartResponse(session_id=session.id, url=session.url, status=session.status)
+    return DataLayerStartResponse(
+        session_id=session.id, url=session.url, status=session.status, error=session.error
+    )
 
 
 @router.post("/data-layer/click", response_model=DataLayerClickResponse)

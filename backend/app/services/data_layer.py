@@ -855,10 +855,20 @@ class DataLayerService:
         page script runs, and open the URL. The browser stays open after this
         returns; callers poll ``status`` / ``events``.
         """
-        safe_url = validate_url(url, allow_localhost=_allow_localhost_debug())
+        sid = self._new_session_id()
+        try:
+            safe_url = validate_url(url, allow_localhost=_allow_localhost_debug())
+        except Exception as exc:  # noqa: BLE001
+            session = DataLayerSession(sid, url)
+            session.status = "error"
+            session.error = f"{type(exc).__name__}: {exc}"
+            self._sessions[sid] = session
+            import logging
+            logging.exception("DATA LAYER START FAILED (validate_url) | session=%s | url=%s", sid, url)
+            return session
+
         from playwright.async_api import async_playwright
 
-        sid = self._new_session_id()
         session = DataLayerSession(sid, safe_url)
         self._sessions[sid] = session
         session.status = "starting"
@@ -1153,6 +1163,7 @@ class DataLayerService:
             session.message = "Instrumentation active — interact with the page to capture events."
             session.status = "capturing"
             self._start_sweep(sid)
+            return session
         except Exception as exc:  # noqa: BLE001
             session.status = "error"
             session.error = f"{type(exc).__name__}: {exc}"

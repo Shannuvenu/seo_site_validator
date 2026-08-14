@@ -243,6 +243,7 @@ class DataLayerStartResponse(BaseModel):
     session_id: str
     url: str
     status: str = "starting"
+    error: Optional[str] = None
 
 
 class DataLayerClickRequest(BaseModel):
