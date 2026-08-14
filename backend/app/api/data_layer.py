@@ -54,7 +54,7 @@ async def start_capture(request: DataLayerStartRequest) -> DataLayerStartRespons
         navigation_pause_ms=request.navigation_pause_ms or 2500,
         click_text=request.click_text,
         click_selector=request.click_selector,
-        headless=request.headless if request.headless is not None else True,
+        headless=True,  # server has no display — visible/non-headless mode can never work here
     )
     return DataLayerStartResponse(
         session_id=session.id, url=session.url, status=session.status, error=session.error
