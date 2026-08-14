@@ -36,6 +36,7 @@ app.add_middleware(
         "http://localhost:4173",
         "https://seo-site-validator.vercel.app",
     ],
+    allow_origin_regex=r"https://seo-site-validator.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
