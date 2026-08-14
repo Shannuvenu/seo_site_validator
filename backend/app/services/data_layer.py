@@ -1217,7 +1217,7 @@ class DataLayerService:
             await session.page.wait_for_timeout(1500)
             session.touch()
             await session.collect_events()
-            return {"clicked": clicked, "message": f"Clicked element with text \"{text}\"." if clicked else f"Could not click element with text \"{text}\" — not found or not visible.", "session_id": session_id}
+            return {"clicked": clicked, "message": f'Clicked element with text "{text}".' if clicked else f'Could not click element with text "{text}" — not found or not visible.', "session_id": session_id}
         except Exception as exc:  # noqa: BLE001
             return {
                 "clicked": False,
@@ -1384,10 +1384,11 @@ class DataLayerService:
                 )
             except Exception:  # noqa: BLE001 - info is best-effort
                 pass
+            target_desc = f" {selector}" if selector else f' with text "{text}"'
             return {
                 "clicked": clicked,
-                "message": f"Clicked element{f' {selector}' if selector else f' with text \"{text}\"' }." if clicked
-                else f"Could not click element{f' {selector}' if selector else f' with text \"{text}\"' } — not found or not visible.",
+                "message": f"Clicked element{target_desc}." if clicked
+                else f"Could not click element{target_desc} — not found or not visible.",
                 "session_id": session_id,
                 "element": info if isinstance(info, dict) else None,
             }
