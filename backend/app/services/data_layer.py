@@ -661,6 +661,8 @@ class DataLayerSession:
         self._seen_ls_markers: set = set()
         self._sweep_task: Optional[asyncio.Task] = None
         self._popup_tasks: List[asyncio.Task] = []
+        self._popup_tasks: List[asyncio.Task] = []
+        self._ingest_lock = asyncio.Lock()
 
     def touch(self) -> None:
         self.last_active = time.time()
@@ -723,6 +725,10 @@ class DataLayerSession:
         }
 
     async def collect_events(self) -> List[DataLayerRecord]:
+        async with self._ingest_lock:
+            return await self._collect_events_locked()
+
+    async def _collect_events_locked(self) -> List[DataLayerRecord]:
         """Reconcile the in-page mirror (localStorage + live records) into the
         backend log.
 
@@ -785,6 +791,9 @@ class DataLayerSession:
         return self._events
 
     def _ingest_raw_localstorage(self, raw: str) -> None:
+        self._ingest_raw_localstorage_locked(raw)
+
+    def _ingest_raw_localstorage_locked(self, raw: str) -> None:
         """Ingest a raw localStorage JSON string (from a departing page) into
         the authoritative backend log, deduplicating by content."""
         import json as _json
@@ -877,15 +886,31 @@ class DataLayerService:
         try:
             playwright = await async_playwright().start()
             session.playwright = playwright
-            browser = await playwright.chromium.launch(
-    headless=headless,
-    args=[
-        "--disable-blink-features=AutomationControlled",
-        "--no-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-    ],
-)
+            launch_args = [
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ]
+            try:
+                browser = await playwright.chromium.launch(headless=headless, args=launch_args)
+            except Exception as launch_exc:  # noqa: BLE001
+                # headless=False needs a real display (X server). Locally
+                # that's fine (Windows/macOS/Linux desktop) — but on a
+                # headless cloud box (Render etc.) this throws immediately.
+                # Fall back to headless=True instead of failing the whole
+                # session, so a stray non-headless request in production
+                # still works (just without a visible window).
+                if not headless:
+                    import logging
+                    logging.warning(
+                        "DATA LAYER: headless=False launch failed (%s) — no display available, "
+                        "falling back to headless=True | session=%s",
+                        launch_exc, sid,
+                    )
+                    browser = await playwright.chromium.launch(headless=True, args=launch_args)
+                else:
+                    raise
             session.browser = browser
             context = await browser.new_context(
                 user_agent=(
@@ -907,6 +932,8 @@ class DataLayerService:
             await context.add_init_script(OBSERVER_SCRIPT)
             page = await context.new_page()
             session.page = page
+            page.on("popup", lambda p: asyncio.create_task(_on_popup(p)))
+            context.on("page", lambda p: asyncio.create_task(_on_popup(p)) if p != page else None)
 
             async def _on_message(msg) -> None:
                 try:

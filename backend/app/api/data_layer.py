@@ -54,7 +54,14 @@ async def start_capture(request: DataLayerStartRequest) -> DataLayerStartRespons
         navigation_pause_ms=request.navigation_pause_ms or 2500,
         click_text=request.click_text,
         click_selector=request.click_selector,
-        headless=True,  # server has no display — visible/non-headless mode can never work here
+        # Respect what the frontend checkbox actually sent. On your local
+        # machine (localhost:5173 + local backend) a real display exists, so
+        # headless=False opens a real visible Chromium window you can click
+        # in. On a headless cloud server (e.g. Render, no display/X server)
+        # headless=False cannot render a window at all — start() below
+        # auto-falls-back to headless=True if launching non-headless fails,
+        # so production never breaks even if this flag is left True there.
+        headless=request.headless if request.headless is not None else True,
     )
     return DataLayerStartResponse(
         session_id=session.id, url=session.url, status=session.status, error=session.error

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .api.routes import api_router
@@ -41,6 +42,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Compress every response over 1KB (JSON payloads, JS/CSS bundles) —
+# meaningfully cuts load time on Render's free-tier bandwidth.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(api_router, prefix="/api")
 

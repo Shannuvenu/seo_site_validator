@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import type { ScanResponse, SourceLocation, UrlScanResult, ValidationFinding } from "../types/api";
 import UrlInputBar from "../components/UrlInputBar";
+import UrlSelector from "../components/UrlSelector";
 import SourceViewer from "../components/SourceViewer";
 import { api } from "../services/api";
 import "./structured-data.css";
@@ -169,24 +170,15 @@ export default function StructuredDataPage(_props: StructuredDataPageProps) {
       {error && <div className="error-box">{error}</div>}
 
       {result && (
-        <div className="sd-url-selector mono">
-          {result.results.map((r) => (
-            <button
-              key={r.url}
-              className={`url-chip ${r.url === activeUrl ? "active" : ""} ${
-                r.fetch_error ? "failed" : ""
-              }`}
-              onClick={() => {
-                setActiveUrl(r.url);
-                setHighlight(null);
-                setActiveFinding(null);
-              }}
-            >
-              {r.fetch_error ? "⚠" : r.status_code === 200 ? "✓" : "✗"} {shortUrl(r.url)}
-              {r.fetch_error && <span className="chip-err"> {r.fetch_error_type}</span>}
-            </button>
-          ))}
-        </div>
+        <UrlSelector
+          results={result.results}
+          activeUrl={activeUrl}
+          onSelect={(url) => {
+            setActiveUrl(url);
+            setHighlight(null);
+            setActiveFinding(null);
+          }}
+        />
       )}
 
       {activeResult && !activeResult.fetch_error && sd && (
@@ -261,11 +253,3 @@ export default function StructuredDataPage(_props: StructuredDataPageProps) {
   );
 }
 
-function shortUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    return `${u.hostname}${u.pathname.length > 40 ? u.pathname.slice(0, 40) + "…" : u.pathname}`;
-  } catch {
-    return url;
-  }
-}

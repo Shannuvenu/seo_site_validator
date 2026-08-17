@@ -597,7 +597,7 @@ var PrajavaniQA = (() => {
       return;
     }
     if (spec.enum !== void 0) {
-      if (!spec.enum.some((e) => e === value)) {
+      if (!spec.enum.some((e) => String(e) === String(value))) {
         issues.push({
           field,
           reason: `expected one of [${spec.enum.map((e) => JSON.stringify(e)).join(", ")}], got ${jsonPreview(value)}`,
@@ -654,13 +654,27 @@ var PrajavaniQA = (() => {
       return String(value);
     }
   }
+  function schemaApplies(schema, payload) {
+    const pageTypeSpec = schema.fields.page_type;
+    if ((pageTypeSpec == null ? void 0 : pageTypeSpec.exact) !== void 0) {
+      const actual = payload.page_type;
+      if (actual !== void 0 && actual !== pageTypeSpec.exact) {
+        return false;
+      }
+    }
+    return true;
+  }
   function validateEvent(normalized) {
     const schemas = schemasForEvent(normalized.eventName);
     if (schemas.length === 0) {
       return { status: "UNCHECKED", issues: [], uncovered: true };
     }
+    const candidates = schemas.filter((schema) => schemaApplies(schema, normalized.payload));
+    if (candidates.length === 0) {
+      return { status: "UNCHECKED", issues: [], uncovered: true };
+    }
     let best = null;
-    for (const schema of schemas) {
+    for (const schema of candidates) {
       const issues = [];
       for (const [field, spec] of Object.entries(schema.fields)) {
         checkField(field, spec, normalized.payload, issues);
@@ -1280,6 +1294,8 @@ var PrajavaniQA = (() => {
         const checkTd = el("td");
         const checkBadge = el("span", `pvqa-badge ${checkClass(row.check)}`, row.check);
         if (row.validationIssues.length) checkBadge.title = row.validationIssues.join("\n");
+        checkBadge.style.cursor = "pointer";
+        checkBadge.addEventListener("click", () => this.showPayloadModal(row));
         checkTd.appendChild(checkBadge);
         const elTd = el("td", "pvqa-el", elementSummary(row));
         const payloadTd = el("td");
@@ -1299,25 +1315,53 @@ var PrajavaniQA = (() => {
       this.body.style.display = this.minimized ? "none" : "";
     }
     showPayloadModal(row) {
-      var _a, _b;
+      var _a;
       const backdrop = el("div", "pvqa-modal-backdrop");
       const modal = el("div", "pvqa-modal");
       const head = el("div", "pvqa-modal-head");
-      head.appendChild(el("span", "pvqa-modal-title", `${(_a = row.eventName) != null ? _a : "event"} \u2014 ${row.check}`));
+      head.appendChild(
+        el("span", "pvqa-modal-title", `${(_a = row.eventName) != null ? _a : row.kind} \u2014 ${row.check}`)
+      );
       const btnCopy = el("button", "pvqa-btn", "Copy");
       btnCopy.addEventListener("click", () => {
-        var _a2, _b2;
+        var _a2, _b;
         try {
-          (_b2 = navigator.clipboard) == null ? void 0 : _b2.writeText(JSON.stringify((_a2 = row.payload) != null ? _a2 : {}, null, 2));
+          (_b = navigator.clipboard) == null ? void 0 : _b.writeText(JSON.stringify((_a2 = row.payload) != null ? _a2 : {}, null, 2));
         } catch {
         }
       });
       const btnClose = el("button", "pvqa-btn", "Close");
       btnClose.addEventListener("click", () => backdrop.remove());
       head.append(btnCopy, btnClose);
-      const pre = el("pre", "pvqa-modal-json");
-      pre.textContent = JSON.stringify((_b = row.payload) != null ? _b : {}, null, 2);
-      modal.append(head, pre);
+      modal.append(head);
+      if (row.variant) {
+        modal.appendChild(el("div", "pvqa-variant", `Schema/variant: ${row.variant}`));
+      }
+      if (row.validationIssues.length) {
+        modal.appendChild(el("div", void 0, `${row.validationIssues.length} issue(s):`));
+        const list = el("ul");
+        for (const issue of row.validationIssues) {
+          list.appendChild(el("li", void 0, issue));
+        }
+        modal.appendChild(list);
+      }
+      if (row.sequenceNote) {
+        modal.appendChild(el("div", "pvqa-seqnote", row.sequenceNote));
+      }
+      if (row.element) {
+        modal.appendChild(el("div", void 0, "Clicked element:"));
+        const elPre = el("pre", "pvqa-modal-json");
+        elPre.textContent = JSON.stringify(row.element, null, 2);
+        modal.appendChild(elPre);
+      }
+      if (row.payload) {
+        modal.appendChild(el("div", void 0, "Payload:"));
+        const pre = el("pre", "pvqa-modal-json");
+        pre.textContent = JSON.stringify(row.payload, null, 2);
+        modal.appendChild(pre);
+      } else if (!row.element) {
+        modal.appendChild(el("div", void 0, "No payload captured for this row."));
+      }
       backdrop.appendChild(modal);
       backdrop.addEventListener("click", (e) => {
         if (e.target === backdrop) backdrop.remove();

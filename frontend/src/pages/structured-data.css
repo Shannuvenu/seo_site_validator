@@ -4,39 +4,6 @@
   flex-direction: column;
 }
 
-.sd-url-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.url-chip {
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.url-chip.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.url-chip.failed {
-  border-color: rgba(248, 113, 113, 0.4);
-  color: var(--red);
-}
-
-.chip-err {
-  color: var(--red);
-  font-weight: 600;
-}
-
 .sd-layout {
   flex: 1;
   display: grid;

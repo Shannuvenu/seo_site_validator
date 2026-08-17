@@ -610,7 +610,6 @@ export default function DataLayerPage() {
   // you were clicking in your own separate Chrome, not the instrumented one.
   const [headless, setHeadless] = useState(false);
   const [checkModal, setCheckModal] = useState<{ event: DataLayerRecord; check: CheckResult } | null>(null);
-  const [clickText, setClickText] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [browserStatus, setBrowserStatus] = useState<BrowserStatus>("not_started");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -624,6 +623,7 @@ export default function DataLayerPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [loading, setLoading] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [clickText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -929,12 +929,6 @@ export default function DataLayerPage() {
             placeholder="https://www.deccanherald.com/..."
             disabled={!!sessionId}
           />
-          <input
-            value={clickText}
-            onChange={(e) => setClickText(e.target.value)}
-            placeholder="Click element text (e.g. Login)"
-            style={{ maxWidth: 220 }}
-          />
           <button className="btn btn-primary" onClick={handleStart} disabled={loading || !!sessionId}>
             {loading ? "Starting…" : "Start Capture"}
           </button>
@@ -956,9 +950,6 @@ export default function DataLayerPage() {
           <button className="btn" onClick={handleDump} disabled={!sessionId || !!busyAction}>
             Dump Events
           </button>
-          <button className="btn" onClick={handleClick} disabled={!sessionId || !clickText.trim() || !!busyAction}>
-            Click Element
-          </button>
           <button className="btn" onClick={handleClear} disabled={!sessionId || !!busyAction}>
             Clear History
           </button>
@@ -969,9 +960,6 @@ export default function DataLayerPage() {
             Close Browser
           </button>
         </div>
-
-        {error && <div className="error-box">{error}</div>}
-        {notice && <div className="notice-box">{notice}</div>}
       </div>
 
       <div className="dl-status card">

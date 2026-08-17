@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ScanResponse, TechnicalSeoResult, UrlScanResult } from "../types/api";
 import UrlInputBar from "../components/UrlInputBar";
+import UrlSelector from "../components/UrlSelector";
 import { api } from "../services/api";
 import "./technical-seo.css";
 
@@ -43,17 +44,7 @@ export default function TechnicalSeoPage(_props: TechnicalSeoPageProps) {
       {error && <div className="error-box">{error}</div>}
 
       {result && (
-        <div className="sd-url-selector mono">
-          {result.results.map((r) => (
-            <button
-              key={r.url}
-              className={`url-chip ${r.url === activeUrl ? "active" : ""} ${r.fetch_error ? "failed" : ""}`}
-              onClick={() => setActiveUrl(r.url)}
-            >
-              {r.fetch_error ? "⚠" : "✓"} {shortUrl(r.url)}
-            </button>
-          ))}
-        </div>
+        <UrlSelector results={result.results} activeUrl={activeUrl} onSelect={setActiveUrl} />
       )}
 
       {active?.fetch_error && (
@@ -159,11 +150,4 @@ function KvRow({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
   );
 }
 
-function shortUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    return `${u.hostname}${u.pathname.length > 40 ? u.pathname.slice(0, 40) + "…" : u.pathname}`;
-  } catch {
-    return url;
-  }
-}
+

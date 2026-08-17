@@ -1,0 +1,131 @@
+/* Shared dropdown URL selector — used by Structured Data + Technical SEO
+   tabs so both look identical instead of drifting apart. */
+
+.url-select {
+  position: relative;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.url-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.url-select-trigger:hover {
+  border-color: var(--accent);
+}
+
+.url-select-trigger.open {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.url-select-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-select-count {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+.url-select-caret {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  transition: transform 0.12s;
+}
+
+.url-select-caret.up {
+  transform: rotate(180deg);
+}
+
+.url-select-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.url-select-dot.failed {
+  background: var(--red);
+}
+
+.url-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+}
+
+.url-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.url-select-option:hover {
+  background: var(--accent-soft);
+}
+
+.url-select-option.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.url-select-option-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-select-option-code {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.url-select-option-err {
+  flex-shrink: 0;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 600;
+}
