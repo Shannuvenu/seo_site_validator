@@ -61,16 +61,26 @@ export interface JsonLdBlock {
   json_error_column?: number | null;
 }
 
-export type GoogleSupportStatus = "SUPPORTED" | "NOT_SUPPORTED" | "DEPRECATED" | "UNKNOWN";
-export type GoogleItemStatus = "PASS" | "WARN" | "FAIL" | "NOT_APPLICABLE";
-export type GoogleFindingCategory = "GOOGLE_SEARCH_ERROR" | "GOOGLE_SEARCH_WARNING";
+/* =========================================================
+   Google Search Structured Data
+   ========================================================= */
 
-/** A Google Search structured-data eligibility finding.
- *
- * Kept strictly separate from Schema.org validity (`ValidationFinding`): an
- * item can be valid Schema.org and still be ineligible for a Google Search
- * rich result, and vice versa.
- */
+export type GoogleSupportStatus =
+  | "SUPPORTED"
+  | "NOT_SUPPORTED"
+  | "DEPRECATED"
+  | "UNKNOWN";
+
+export type GoogleItemStatus =
+  | "PASS"
+  | "WARN"
+  | "FAIL"
+  | "NOT_APPLICABLE";
+
+export type GoogleFindingCategory =
+  | "GOOGLE_SEARCH_ERROR"
+  | "GOOGLE_SEARCH_WARNING";
+
 export interface GoogleFinding {
   id: string;
   severity: Severity;
@@ -113,6 +123,10 @@ export interface GoogleSearchResult {
   warning_count: number;
 }
 
+/* =========================================================
+   Structured Data
+   ========================================================= */
+
 export interface StructuredDataResult {
   status: "PASS" | "WARN" | "FAIL" | "SKIPPED" | "UNKNOWN";
   item_count: number;
@@ -124,6 +138,10 @@ export interface StructuredDataResult {
   findings: ValidationFinding[];
   google: GoogleSearchResult;
 }
+
+/* =========================================================
+   Technical SEO
+   ========================================================= */
 
 export interface TechnicalSeoFinding {
   category: string;
@@ -139,31 +157,49 @@ export interface TechnicalSeoResult {
   status_code: number;
   content_type: string;
   fetch_duration_ms: number;
+
   title?: string | null;
   title_length?: number | null;
+
   meta_description?: string | null;
   meta_description_length?: number | null;
+
   canonical?: string | null;
+
   robots_meta?: string | null;
   robots_directives: string[];
+
   viewport?: string | null;
+
   h1: string[];
   h2: string[];
   h3: string[];
+
   image_count: number;
   images_missing_alt: number;
+
   link_count: number;
   internal_links: number;
   external_links: number;
+
   broken_anchors: number;
+
   og_tags: Record<string, string>;
   twitter_tags: Record<string, string>;
+
   hreflang_tags: string[];
+
   canonical_https: boolean;
+
   has_jsonld: boolean;
   structured_data_blocks: number;
+
   findings: TechnicalSeoFinding[];
 }
+
+/* =========================================================
+   URL Scan
+   ========================================================= */
 
 export interface UrlScanResult {
   url: string;
@@ -171,10 +207,13 @@ export interface UrlScanResult {
   status_code: number;
   content_type: string;
   fetch_duration_ms: number;
+
   fetch_error?: string | null;
   fetch_error_type?: string | null;
+
   technical_seo?: TechnicalSeoResult | null;
   structured_data?: StructuredDataResult | null;
+
   html?: string | null;
   html_size?: number | null;
 }
@@ -184,7 +223,10 @@ export interface ScanResponse {
   scan_id: string;
 }
 
-// Site Structure
+/* =========================================================
+   Site Structure
+   ========================================================= */
+
 export interface SiteNode {
   section_id: string;
   name: string;
