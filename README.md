@@ -1,12 +1,12 @@
 # SEO & Structured Data Health Check
 
 A production-quality internal tool for auditing news websites (Deccan Herald, Prajavani)
-with **four modules**:
+with **two modules**:
 
 1. **Technical SEO** — titles, meta, canonical, robots, headings, images, links, Open Graph, Twitter, hreflang.
-2. **Structured Data / Schema.org Validator** — real Schema.org validation with **error → exact source location navigation**.
-3. **Data Layer Inspector** — real-browser `window.dataLayer` capture with `push` hooking and `localStorage` persistence.
-4. **Site Structure** — Quintype section tree built from the site's own config API.
+2. **Structured Data** — real Schema.org validation (error → exact source location navigation)
+   **plus** a separate Google Search structured-data eligibility layer based on Google's
+   publicly documented rich-result requirements.
 
 **No Streamlit. No paywall.**
 
@@ -18,8 +18,8 @@ with **four modules**:
 project/
 ├── frontend/                 # React + TypeScript + Vite
 │   ├── src/
-│   │   ├── components/       # UrlInputBar, SourceViewer (CodeMirror)
-│   │   ├── pages/            # TechnicalSeo, StructuredData, DataLayer, SiteStructure
+│   │   ├── components/       # UrlInputBar, SourceViewer (CodeMirror), UrlSelector
+│   │   ├── pages/            # TechnicalSeoPage, StructuredDataPage
 │   │   ├── services/         # api.ts (REST client)
 │   │   ├── types/            # backend models mirrored as TS types
 │   │   └── styles/           # global.css + per-page css
@@ -27,25 +27,33 @@ project/
 │
 ├── backend/                  # Python + FastAPI
 │   ├── app/
-│   │   ├── api/              # routes: scan, data-layer, site-structure, vocab
+│   │   ├── api/              # routes: scan, site-structure, vocab, analytics
 │   │   ├── models/           # Pydantic response models
 │   │   ├── parsers/          # sourceloc, extractor, sourcemap, normalizer, jsonld_parser
-│   │   ├── validators/       # vocabulary (Schema.org vocab), schema_org
-│   │   ├── services/         # fetcher (SSRF-guarded), pipeline, technical_seo, data_layer, site_structure
+│   │   ├── validators/       # vocabulary (Schema.org vocab), schema_org,
+│   │   │                     # google_rules (rule registry), google_search (eligibility validator)
+│   │   ├── services/         # fetcher (SSRF-guarded), pipeline, technical_seo, site_structure
 │   │   ├── vocab/            # cached schemaorg-current.jsonld (auto-downloaded once)
 │   │   └── main.py
-│   └── tests/                # pytest (43 tests)
-│
+│   └── tests/                # pytest
+
 └── README.md
 ```
 
 ```
 React (Vite :5173) ──REST──▶ FastAPI (:8000) ──▶ async fetch (httpx)
                                           ├──▶ Schema.org vocab + validator
+                                          ├──▶ Google Search eligibility validator
                                           ├──▶ Technical SEO analyzer
-                                          ├──▶ Playwright browser (data layer)
-                                          └──▶ Quintype config API (site structure)
+                                          └──▶ Quintype config API (site structure, backend-only)
 ```
+
+> **Note:** the Data Layer inspection module (Playwright-based `window.dataLayer`
+> capture) has been **removed as a product feature**. There is no Data Layer tab,
+> page, route, or API endpoint any more. The unrelated `frontend/src/qa/*` bundle
+> (a standalone browser-console QA script users paste into the *live production
+> site's* console) is a separate distributable tool, not part of this app's UI,
+> and was left untouched.
 
 ---
 
@@ -59,7 +67,6 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows
 # .venv/bin/activate            # macOS/Linux
 pip install -r requirements.txt
-python -m playwright install chromium   # required for the Data Layer module
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -92,17 +99,9 @@ npm run build        # creates frontend/dist
 | POST | `/api/scan` | Fetch + analyze up to 15 URLs (Technical SEO + Structured Data) |
 | POST | `/api/structured-data/validate` | Structured Data validation for 1–15 URLs |
 | POST | `/api/structured-data/validate-html` | Validate a raw HTML body |
-| POST | `/api/data-layer/start` | Launch a persistent Chromium session, auto-inject the observer, open the URL; returns a `session_id` (browser stays open) |
-| POST | `/api/data-layer/click` | Click a visible element by text (e.g. `Logout`) to trigger push events |
-| POST | `/api/data-layer/click-element` | Click an element by selector/text and return rich element info |
-| GET | `/api/data-layer/status?session_id=...` | Live session status (no event payload) |
-| GET | `/api/data-layer/events?session_id=...` | Session status + full captured record history (seq, type, timestamp, url, data) |
-| POST | `/api/data-layer/clear` | Clear captured history (browser localStorage + backend log); browser stays open |
-| POST | `/api/data-layer/export` | Export the complete session as JSON (all metadata) |
-| POST | `/api/data-layer/close` | Close the browser session and free resources |
 | GET | `/api/analytics/status` | Whether the optional GA4 integration is configured (never fake data) |
 | GET | `/api/analytics/overview` | GA4 overview (returns 503 config error until credentials/property are set) |
-| GET | `/api/site-structure/config?site=deccanherald\|prajavani` | Quintype section tree |
+| GET | `/api/site-structure/config?site=deccanherald\|prajavani` | Quintype section tree (backend-only; not exposed as a UI tab) |
 | GET | `/api/vocab/status` | Schema.org vocabulary load status |
 | GET | `/api/health` | Health check |
 
@@ -124,6 +123,35 @@ exact location:
     "json_line": 1,
     "json_column": 4087,
     "block_index": 0
+  }
+}
+```
+
+Each result's `structured_data.google` field carries the **separate** Google Search
+eligibility report:
+
+```json
+{
+  "google": {
+    "items": [
+      {
+        "item_type": "Product",
+        "support_status": "SUPPORTED",
+        "rich_result_type": "Product snippet / Merchant listing",
+        "eligible": false,
+        "status": "FAIL",
+        "errors": 1,
+        "warnings": 3
+      }
+    ],
+    "findings": [
+      {
+        "severity": "ERROR",
+        "category": "GOOGLE_SEARCH_ERROR",
+        "code": "GOOGLE_ONE_OF_MISSING",
+        "message": "Either \"offers\", \"review\" or \"aggregateRating\" should be specified for the Product snippet / Merchant listing rich result."
+      }
+    ]
   }
 }
 ```
@@ -171,60 +199,45 @@ from findings to HTML source precisely.
 
 ---
 
-## Data Layer
+## Google Search structured-data eligibility
 
-The Data Layer module **requires a real browser** (Playwright Chromium). A plain HTTP
-request cannot see runtime `window.dataLayer`, so the backend holds a **persistent
-browser session** per capture:
+Schema.org validity and Google Search eligibility are **deliberately kept separate**.
+A Schema.org-valid item is not automatically eligible for a Google Search rich result,
+and this tool never claims to reproduce Google's proprietary internal ranking/eligibility
+algorithm — only its publicly documented structured-data requirements
+(https://developers.google.com/search/docs/appearance/structured-data).
 
 ```
-React ──▶ FastAPI ──▶ Playwright ──▶ real Chromium page ──▶ window.dataLayer
-   ◀────────────────────────── events ──────────────────────────┘
+Schema.org-valid items
+        │
+        ▼
+GoogleSearchValidator (backend/app/validators/google_search.py)
+        │  looks up the item's type in the rule registry
+        ▼
+backend/app/validators/google_rules.py  ← single source of truth
+        │
+        ├── SUPPORTED    → required / required-one-of / recommended / format checks
+        ├── DEPRECATED   → Google publicly retired this rich result (dated explanation,
+        │                  no error/warning noise generated)
+        ├── NOT_SUPPORTED→ valid Schema.org type, but never was a Google Search feature
+        └── UNKNOWN      → the Schema.org type itself isn't recognised
 ```
 
-Two capture streams are kept **strictly separate**:
-
-1. **DATA LAYER events** — real `window.dataLayer.push(...)` calls. The observer
-   hooks `push` **before any page script runs** (`add_init_script`), preserves the
-   original `push` (site functionality is never broken), and records the EXACT
-   pushed object (existing entries + future pushes, nested structure intact).
-2. **USER INTERACTIONS** — clicks / scrolls / inputs / submits / page loads the user
-   performs in the page. These are recorded as `interaction` records with rich
-   element info (tag, text, id, class, href, role, aria-label...) — never presented
-   as dataLayer events.
-
-Workflow in the UI:
-
-1. Enter a URL → **Start Capture** (launches Chromium, opens the page, browser stays
-   open). Instrumentation is **automatic** — no manual logger script needed.
-2. Interact with the site in the controlled browser: clicks, scrolls (throttled to
-   meaningful positions: 25/50/75/90/100%), inputs, navigation. Each appears as a
-   human-readable USER INTERACTION record ("User clicked \"Read More\"",
-   "User scrolled to 50%"). If the site also fires `dataLayer.push(...)`, that
-   appears separately as a DATA LAYER record.
-3. **Dump Events** pulls the complete chronological timeline into the React UI
-   (# / Time / Type / Event / URL, expandable rows showing the full JSON, search
-   across event names/actions/URLs/JSON, filters for Data Layer / Interaction /
-   Navigation / Click / Scroll / Page Load / Input / Submit). No DevTools needed.
-4. **Clear History** wipes the application history (localStorage `dataLayerHistory`)
-   and the backend session log without closing the browser — the next event starts a
-   fresh timeline. **Export JSON** downloads the full session (`session_id`,
-   `started_at`, all events across navigation). **Close Browser** closes the session
-   — no orphan Chromium processes.
-5. The timeline persists across navigation, re-renders and tab switches via
-   application localStorage (`dataLayerHistory`). The backend session log remains
-   the authoritative capture source; application localStorage is only a UI history
-   cache, deduplicated by event identity so one real event never appears twice.
-
-Events survive navigation, redirects and reloads: every record is stamped with an
-ISO timestamp + URL and streamed to the **backend session log** (authoritative), so
-the timeline stays complete across pages.
-
-The status panel shows live state (`● Capturing`, current URL, `Events captured: N`,
-`dataLayer detected: YES/NO`, `Capture: Listening/Stopped`, actual backend errors).
-
-Example real capture from deccanherald.com: `gtm.js`, `gtm.dom`, `page_view` —
-all with full expandable JSON.
+- Findings are tagged `GOOGLE_SEARCH_ERROR` / `GOOGLE_SEARCH_WARNING` and kept in a
+  separate list (`structured_data.google.findings`) from Schema.org's
+  `structured_data.findings` — the two are never merged into one generic list.
+- Currently registered rich-result types: Article/NewsArticle/BlogPosting, Product,
+  Recipe, BreadcrumbList, JobPosting, Event, VideoObject, LocalBusiness, Organization
+  (logo), SoftwareApplication, Review, WebSite (sitelinks search box).
+- Explicitly marked **deprecated** (not silently validated as if still live): FAQPage
+  (FAQ rich results ended for all sites 2026-05-07), HowTo (deprecated 2023-09),
+  ClaimReview and SpecialAnnouncement (retired 2025-06).
+- To add a new Google-supported type, add one `GoogleTypeRule` entry to
+  `GOOGLE_TYPE_RULES` in `google_rules.py` — nothing else needs to change.
+- Format/value checks (`google_rules.PropertyFormat`) are intentionally
+  non-aggressive (URL/date/datetime/number/price/image shape only) and findings
+  derived from them are marked `heuristic=True` where they go beyond a literal
+  "field is present" check from Google's docs.
 
 ## Google Analytics (optional, placeholder)
 
@@ -293,28 +306,34 @@ validation rules, and the documented source-spec inconsistencies.
 ## Tests
 
 ```bash
-# Backend (43 tests)
+# Backend
 cd backend
 .venv\Scripts\python.exe -m pytest -q
 
-# Frontend (3 tests)
+# Frontend
 cd frontend
 npm run test
 ```
 
-Coverage includes: extraction, multi-block + `@graph` + nested parsing, source mapping
-(exact line/offset), Schema.org validation semantics, error grouping per item,
+Backend coverage includes: extraction, multi-block + `@graph` + nested parsing, source
+mapping (exact line/offset), Schema.org validation semantics, error grouping per item,
 malformed-JSON isolation, SSRF blocking, Technical SEO analysis, Quintype tree building,
-real network integration, and a real Playwright dataLayer capture.
+real network integration, and the Google Search eligibility layer (required /
+required-one-of / recommended fields, deprecated-type handling, Schema.org-vs-Google
+separation, per-item error+warning coexistence, source location, overview counts).
 
 ## Known limitations
 
 - The site-structure tree is built from the Quintype `sections` array; some parent/child
   edges flatten when the config references sections by id without nesting (350 nodes
-  total on Deccan Herald, with correct primary hierarchy).
-- The Data Layer capture runs a single page-load session with an optional click; it does
-  not yet replay multi-step user journeys across many pages.
+  total on Deccan Herald, with correct primary hierarchy). The Site Structure feature
+  remains available as a backend API for internal tooling but is not exposed as a UI tab.
 - The HTML source viewer loads the full page into the browser (up to 8 MB); very large
   pages may feel heavy — the source is served as a string in the scan response.
-- Value-range checks are intentionally permissive to match validator.schema.org behavior;
-  they surface as warnings, not errors.
+- Schema.org value-range checks are intentionally permissive to match validator.schema.org
+  behavior; they surface as warnings, not errors.
+- The Google Search eligibility layer implements the publicly documented required /
+  recommended property lists for a curated set of common rich-result types (see
+  `backend/app/validators/google_rules.py`); it is not an exhaustive reproduction of
+  every Google Search feature, and it never claims to replicate Google's proprietary
+  ranking/eligibility algorithm.

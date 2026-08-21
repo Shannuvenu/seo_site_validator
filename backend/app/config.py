@@ -30,20 +30,6 @@ USER_AGENT = (
 # Scanning.
 MAX_URLS_PER_SCAN = 15
 MAX_CONCURRENT_FETCHES = 5
-DATA_LAYER_MAX_EVENTS = 200
-DATA_LAYER_MAX_BYTES = 2 * 1024 * 1024
-
-# Data Layer browser session timeout (seconds).
-DATA_LAYER_BROWSER_TIMEOUT = 90
-
-# Public base URL the monitored pages can beacon records to (optional).
-# The in-page observer uses navigator.sendBeacon as a best-effort fast path for
-# events that occur right before a (possibly cross-origin) navigation, where
-# the page's localStorage becomes unreachable. This only works when the backend
-# is reachable from the page WITHOUT mixed-content blocking (i.e. an HTTPS
-# backend URL in production). Local dev over http://127.0.0.1 is gracefully
-# skipped — the localStorage sweep remains the primary transport.
-DL_BEACON_URL = os.environ.get("DL_BEACON_URL", "").strip()
 
 # Google Analytics 4 (optional integration — NO hardcoded credentials).
 # When GA_PROPERTY_ID is set AND credentials are available via Application

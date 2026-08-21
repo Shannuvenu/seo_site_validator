@@ -26,6 +26,7 @@ import pytest
 from app.parsers.extractor import JsonLdExtractor
 from app.parsers.normalizer import JsonLdNormalizer
 from app.parsers.sourcemap import SourceMap
+from app.services.pipeline import analyze_structured_data
 from app.validators.schema_org import SchemaOrgValidator
 
 # Compact but faithful renderings of the 5 blocks.
@@ -175,3 +176,128 @@ class TestDeccanHeraldRegression:
         lines = DH_HTML.splitlines()
         assert "publisher" in "\n".join(lines[max(0, payload["line"] - 4) : payload["line"] + 1])
         assert payload["start_offset"] < payload["end_offset"]
+# ---------------------------------------------------------------------------
+# Second regression fixture: the mandatory URL from this ticket —
+# https://www.deccanherald.com/india/karnataka/give-the-south-its-due-karnataka-cm-d-k-shivakumar-tells-union-home-minister-amit-shah-4117791
+#
+# IMPORTANT — how this fixture was built: fetching the live page only
+# returns rendered text, not the raw <script type="application/ld+json">
+# markup, so the exact JSON-LD could not be extracted verbatim for this
+# specific article. This fixture instead reuses the REAL, already-verified
+# Deccan Herald JSON-LD template from the BLOCKS fixture above (same site,
+# same Article/NewsArticle/publisher shape, same genuine "publisher.id"
+# unknown-property quirk) and adds the "isAccessibleForFree" / "hasPart" /
+# "WebPageElement" / "cssSelector" paywall markup Google's Paywalled Content
+# feature requires, to reproduce the counts reported for this URL:
+#   Schema.org: 4 valid, 1 invalid (Organization -> "id"), 1 warning
+#   Google:     Articles 2, Breadcrumb 1, Organization 1, Paywalled content 2
+#               => 6 Google Search eligible items
+# If the live markup differs in some way this reconstruction didn't
+# anticipate (e.g. isAccessibleForFree spelled differently, more than one
+# hasPart entry per article), re-run this test against the real HTML and
+# adjust DH2_BLOCKS to match — the validator logic itself is generic and
+# does not depend on this specific fixture.
+DH2_BLOCKS = [
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.deccanherald.com"},
+            {"@type": "ListItem", "position": 2, "name": "India", "item": "https://www.deccanherald.com/india"},
+            {"@type": "ListItem", "position": 3, "name": "Karnataka", "item": "https://www.deccanherald.com/india/karnataka"},
+        ],
+    },
+    {
+        "@type": "Article",
+        "@context": "http://schema.org",
+        "headline": "'Give the South its due': Karnataka CM D K Shivakumar tells Union Home Minister Amit Shah",
+        "datePublished": "2026-08-20T08:16:00+05:30",
+        "publisher": {"@type": "Organization", "@context": "http://schema.org", "id": ""},
+        "author": [{"@type": "Person", "givenName": "Bharath Joshi", "name": "Bharath Joshi"}],
+        "image": {"@type": "ImageObject", "width": "1200", "height": "630"},
+        "articleSection": "Karnataka",
+        "isAccessibleForFree": True,
+        "hasPart": [
+            {"@type": "WebPageElement", "isAccessibleForFree": True, "cssSelector": ".article-body"}
+        ],
+    },
+    {
+        "@type": "NewsArticle",
+        "@context": "http://schema.org",
+        "headline": "'Give the South its due': Karnataka CM D K Shivakumar tells Union Home Minister Amit Shah",
+        "datePublished": "2026-08-20T08:16:00+05:30",
+        "publisher": {"@type": "Organization", "@context": "http://schema.org", "id": ""},
+        "author": [{"@type": "Person", "givenName": "Bharath Joshi", "name": "Bharath Joshi"}],
+        "image": {"@type": "ImageObject", "width": "1200", "height": "630"},
+        "articleSection": "Karnataka",
+        "description": "Karnataka Chief Minister DK Shivakumar told Union Home Minister Amit Shah",
+        "isAccessibleForFree": True,
+        "hasPart": [
+            {"@type": "WebPageElement", "isAccessibleForFree": True, "cssSelector": ".article-body"}
+        ],
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Deccan Herald",
+        "url": "https://www.deccanherald.com",
+        "logo": {"@type": "ImageObject", "url": "https://images.assettype.com/deccanherald/logo.png", "width": 300, "height": 300},
+        "sameAs": ["https://www.facebook.com/deccanherald", "https://twitter.com/DeccanHerald"],
+    },
+]
+
+
+def _render2(blocks: list) -> str:
+    parts = ["<!DOCTYPE html>\n<html>\n<head>\n"]
+    for b in blocks:
+        parts.append(f'  <script type="application/ld+json">\n{json.dumps(b, indent=2)}\n  </script>\n')
+    parts.append("</head>\n<body></body>\n</html>\n")
+    return "".join(parts)
+
+
+DH2_HTML = _render2(DH2_BLOCKS)
+
+
+@pytest.fixture(scope="module")
+def dh2_result():
+    return analyze_structured_data(DH2_HTML)
+
+
+class TestDeccanHeraldShivakumarPaywallRegression:
+    """Covers the discrepancy from this ticket: the app must detect
+    Paywalled Content and report 6 Google Search eligible items, WITHOUT
+    forcing the Schema.org "Organization -> id" error to disappear."""
+
+    def test_schema_org_item_count_and_error_unchanged(self, dh2_result):
+        assert dh2_result.item_count == 4
+        assert dh2_result.error_count == 1  # genuine "publisher.id" unknown property
+        errors = [f for f in dh2_result.findings if f.severity == "ERROR"]
+        assert errors[0].property == "id"
+        assert "not recognised by the schema" in errors[0].message
+
+    def test_google_articles_eligible(self, dh2_result):
+        article_items = [i for i in dh2_result.google.items if i.item_type in ("Article", "NewsArticle")]
+        assert len(article_items) == 2
+        assert all(i.eligible for i in article_items)
+
+    def test_google_breadcrumb_and_organization_eligible(self, dh2_result):
+        breadcrumb = [i for i in dh2_result.google.items if i.item_type == "BreadcrumbList"][0]
+        org = [i for i in dh2_result.google.items if i.item_type == "Organization"][0]
+        assert breadcrumb.eligible is True
+        assert org.eligible is True
+
+    def test_paywalled_content_detected_for_both_articles(self, dh2_result):
+        paywall_items = [i for i in dh2_result.google.items if i.rich_result_type == "Paywalled content"]
+        assert len(paywall_items) == 2
+        assert all(i.eligible for i in paywall_items)
+
+    def test_total_google_eligible_count_is_six(self, dh2_result):
+        assert dh2_result.google.eligible_count == 6
+
+    def test_schema_and_google_validity_stay_decoupled(self, dh2_result):
+        """The NewsArticle carries a genuine Schema.org error (publisher.id)
+        AND is still Google-eligible — these must not be conflated."""
+        news_item = [i for i in dh2_result.items if i.type == "NewsArticle"][0]
+        news_google = [i for i in dh2_result.google.items if i.item_type == "NewsArticle"][0]
+        assert news_item.errors == 1
+        assert news_google.eligible is True

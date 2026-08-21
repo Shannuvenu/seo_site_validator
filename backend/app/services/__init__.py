@@ -1,1 +1,1 @@
-"""Services package: fetching, SEO, data layer, site structure."""
+"""Services package: fetching, technical SEO, structured-data pipeline, site structure."""

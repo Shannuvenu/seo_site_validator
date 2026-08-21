@@ -24,8 +24,8 @@ app = FastAPI(
     title="SEO & Structured Data Health Check API",
     version="1.0.0",
     description=(
-        "Technical SEO, Schema.org validation, data layer inspection, and "
-        "Quintype site structure for news sites (Deccan Herald, Prajavani)."
+        "Structured Data (Schema.org + Google Search eligibility validation) "
+        "and Technical SEO auditing for news sites (Deccan Herald, Prajavani)."
     ),
 )
 

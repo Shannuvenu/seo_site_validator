@@ -92,8 +92,8 @@ def _host_is_blocked(host: str) -> bool:
 def validate_url(url: str, allow_localhost: bool = False) -> str:
     """Normalize and SSRF-guard a URL string; returns the safe URL.
 
-    ``allow_localhost`` is for the local Data Layer test fixtures only — the
-    production API always keeps the guard on.
+    ``allow_localhost`` is for local test fixtures only — the production API
+    always keeps the guard on.
     """
     url = url.strip()
     if not url:

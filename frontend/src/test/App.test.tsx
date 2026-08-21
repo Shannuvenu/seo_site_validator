@@ -90,6 +90,17 @@ const sampleScan = {
             },
           },
         ],
+        google: {
+          items: [],
+          findings: [],
+          supported_count: 0,
+          not_supported_count: 0,
+          deprecated_count: 0,
+          unknown_count: 1,
+          eligible_count: 0,
+          error_count: 0,
+          warning_count: 0,
+        },
       },
     },
   ],
@@ -100,21 +111,21 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the four tabs", () => {
+  it("renders only the two tabs", () => {
     render(<App />);
     expect(screen.getByText("Technical SEO")).toBeInTheDocument();
     expect(screen.getByText("Structured Data")).toBeInTheDocument();
-    expect(screen.getByText("Data Layer")).toBeInTheDocument();
-    expect(screen.getByText("Site Structure")).toBeInTheDocument();
+    expect(screen.queryByText("Data Layer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Site Structure")).not.toBeInTheDocument();
   });
 
   it("switches tabs", async () => {
     render(<App />);
     fireEvent.click(screen.getByText("Technical SEO"));
     expect(screen.getByPlaceholderText(/Paste up to 15 URLs/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Site Structure"));
+    fireEvent.click(screen.getByText("Structured Data"));
     await waitFor(() => {
-      expect(screen.getByText(/Quintype config API/)).toBeInTheDocument();
+      expect(screen.getByText("Run Validation")).toBeInTheDocument();
     });
   });
 
@@ -135,12 +146,12 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Run Validation"));
 
     await waitFor(() => {
-      expect(screen.getByText("DETECTED")).toBeInTheDocument();
+      expect(screen.getByText("ITEM DETAILS")).toBeInTheDocument();
       expect(screen.getByText("NewsArticle")).toBeInTheDocument();
     });
 
     // error summary
-    expect(screen.getAllByText("1 ERROR").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 SCHEMA ERROR/).length).toBeGreaterThan(0);
 
     // click the finding -> navigates (highlight state changes; SourceViewer mounts)
     fireEvent.click(screen.getByText(/not recognised by the schema/));

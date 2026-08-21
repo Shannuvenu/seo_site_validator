@@ -61,6 +61,58 @@ export interface JsonLdBlock {
   json_error_column?: number | null;
 }
 
+export type GoogleSupportStatus = "SUPPORTED" | "NOT_SUPPORTED" | "DEPRECATED" | "UNKNOWN";
+export type GoogleItemStatus = "PASS" | "WARN" | "FAIL" | "NOT_APPLICABLE";
+export type GoogleFindingCategory = "GOOGLE_SEARCH_ERROR" | "GOOGLE_SEARCH_WARNING";
+
+/** A Google Search structured-data eligibility finding.
+ *
+ * Kept strictly separate from Schema.org validity (`ValidationFinding`): an
+ * item can be valid Schema.org and still be ineligible for a Google Search
+ * rich result, and vice versa.
+ */
+export interface GoogleFinding {
+  id: string;
+  severity: Severity;
+  category: GoogleFindingCategory;
+  code: string;
+  message: string;
+  property?: string | null;
+  json_path?: string | null;
+  item_type?: string | null;
+  item_index?: number | null;
+  block_index: number;
+  rich_result_type?: string | null;
+  heuristic: boolean;
+  source?: SourceLocation | null;
+}
+
+export interface GoogleItemResult {
+  item_type: string;
+  item_index: number;
+  block_index: number;
+  support_status: GoogleSupportStatus;
+  rich_result_type?: string | null;
+  eligible: boolean;
+  status: GoogleItemStatus;
+  errors: number;
+  warnings: number;
+  note?: string | null;
+  deprecated_message?: string | null;
+}
+
+export interface GoogleSearchResult {
+  items: GoogleItemResult[];
+  findings: GoogleFinding[];
+  supported_count: number;
+  not_supported_count: number;
+  deprecated_count: number;
+  unknown_count: number;
+  eligible_count: number;
+  error_count: number;
+  warning_count: number;
+}
+
 export interface StructuredDataResult {
   status: "PASS" | "WARN" | "FAIL" | "SKIPPED" | "UNKNOWN";
   item_count: number;
@@ -70,6 +122,7 @@ export interface StructuredDataResult {
   blocks: JsonLdBlock[];
   items: DetectedItem[];
   findings: ValidationFinding[];
+  google: GoogleSearchResult;
 }
 
 export interface TechnicalSeoFinding {
@@ -129,64 +182,6 @@ export interface UrlScanResult {
 export interface ScanResponse {
   results: UrlScanResult[];
   scan_id: string;
-}
-
-// Data Layer
-export type DataLayerRecordType = "dataLayer" | "interaction" | "navigation" | "page";
-
-export interface DataLayerRecord {
-  seq: number;
-  type: DataLayerRecordType;
-  timestamp?: string | null;
-  url: string;
-  data: Record<string, unknown>;
-  page_title?: string | null;
-}
-
-export interface DataLayerStartResponse {
-  session_id: string;
-  url: string;
-  status: string;
-}
-
-export interface DataLayerStatusResponse {
-  session_id: string;
-  status: string;
-  url: string;
-  current_url: string;
-  page_title?: string | null;
-  data_layer_found: boolean;
-  instrumented: boolean;
-  events: DataLayerRecord[];
-  event_count: number;
-  started_at?: string | null;
-  message?: string | null;
-  error?: string | null;
-}
-
-export interface DataLayerClickResponse {
-  session_id: string;
-  clicked: boolean;
-  message: string;
-}
-
-export interface DataLayerExportResponse {
-  session_id: string;
-  started_at?: string | null;
-  url: string;
-  current_url: string;
-  page_title?: string | null;
-  data_layer_found: boolean;
-  events: DataLayerRecord[];
-  event_count: number;
-}
-
-export interface DataLayerSourceResponse {
-  url: string;
-  html: string;
-  html_size: number;
-  page_title?: string | null;
-  error?: string | null;
 }
 
 // Site Structure

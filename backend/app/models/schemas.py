@@ -89,6 +89,72 @@ class JsonLdBlock(BaseModel):
     json_error_column: Optional[int] = None
 
 
+GoogleSupportStatus = Literal["SUPPORTED", "NOT_SUPPORTED", "DEPRECATED", "UNKNOWN"]
+GoogleItemStatus = Literal["PASS", "WARN", "FAIL", "NOT_APPLICABLE"]
+GoogleFindingCategory = Literal["GOOGLE_SEARCH_ERROR", "GOOGLE_SEARCH_WARNING"]
+
+
+class GoogleFinding(BaseModel):
+    """One Google Search structured-data eligibility finding.
+
+    Kept strictly separate from ``ValidationFinding`` (Schema.org validity).
+    An item can be perfectly valid Schema.org and still fail this layer, and
+    vice versa. ``heuristic`` marks findings that are a project-level
+    interpretation rather than a property lifted verbatim from Google's
+    public documentation (see requirement #16 — no fake Google claims).
+    """
+
+    id: str
+    severity: Severity
+    category: GoogleFindingCategory
+    code: str
+    message: str
+    property: Optional[str] = None
+    json_path: Optional[str] = None
+    item_type: Optional[str] = None
+    item_index: Optional[int] = None
+    block_index: int = 0
+    rich_result_type: Optional[str] = None
+    heuristic: bool = False
+    source: Optional[SourceLocation] = None
+
+
+class GoogleItemResult(BaseModel):
+    """Google Search eligibility outcome for ONE detected top-level item."""
+
+    item_type: str
+    item_index: int = 0
+    block_index: int = 0
+    support_status: GoogleSupportStatus = "UNKNOWN"
+    rich_result_type: Optional[str] = None
+    eligible: bool = False
+    status: GoogleItemStatus = "NOT_APPLICABLE"
+    errors: int = 0
+    warnings: int = 0
+    note: Optional[str] = None
+    deprecated_message: Optional[str] = None
+
+
+class GoogleSearchResult(BaseModel):
+    """Full Google Search structured-data eligibility report for one URL.
+
+    This is built ON TOP OF (never instead of) Schema.org validation — a
+    Schema.org-valid item is not automatically Google Search eligible, and
+    this layer never claims to reproduce Google's proprietary internal
+    ranking/eligibility algorithm, only its publicly documented requirements.
+    """
+
+    items: List[GoogleItemResult] = Field(default_factory=list)
+    findings: List[GoogleFinding] = Field(default_factory=list)
+    supported_count: int = 0
+    not_supported_count: int = 0
+    deprecated_count: int = 0
+    unknown_count: int = 0
+    eligible_count: int = 0
+    error_count: int = 0
+    warning_count: int = 0
+
+
 class StructuredDataResult(BaseModel):
     """Everything the Structured Data module computed for one URL."""
 
@@ -100,6 +166,7 @@ class StructuredDataResult(BaseModel):
     blocks: List[JsonLdBlock] = Field(default_factory=list)
     items: List[DetectedItem] = Field(default_factory=list)
     findings: List[ValidationFinding] = Field(default_factory=list)
+    google: GoogleSearchResult = Field(default_factory=GoogleSearchResult)
 
 
 class TechnicalSeoFinding(BaseModel):
@@ -184,140 +251,6 @@ class ScanResponse(BaseModel):
 
     results: List[UrlScanResult]
     scan_id: str = ""
-
-
-class DataLayerRecord(BaseModel):
-    """One captured event in a dataLayer session.
-
-    Two capture streams, never mixed:
-
-    - ``type == "dataLayer"``    — a REAL ``window.dataLayer.push(...)`` call;
-      ``data`` is the EXACT object that was pushed (source: existing|push).
-    - ``type == "interaction"``  — something the user did in the page
-      (click / scroll / input / change / submit / page_load / pointer); ``data``
-      holds the action + element info. This is an OBSERVED interaction, NOT a
-      dataLayer event.
-    - ``type == "navigation"``   — the page navigated / reloaded / redirected;
-      ``data`` holds from_url / to_url.
-
-    ``page_title`` is captured at event time so the timeline can show which
-    page an event happened on even after the browser navigated away.
-    """
-
-    seq: int = 0
-    type: Literal["dataLayer", "interaction", "navigation", "page"] = "dataLayer"
-    timestamp: Optional[str] = None  # ISO timestamp
-    url: str = ""
-    data: Dict[str, Any] = Field(default_factory=dict)
-    page_title: Optional[str] = None
-
-
-class DataLayerResult(BaseModel):
-    """Full dataLayer inspection output for one URL."""
-
-    url: str
-    final_url: str = ""
-    data_layer_found: bool = False
-    declared_before_load: bool = False
-    existing_events: List[DataLayerRecord] = Field(default_factory=list)
-    pushed_events: List[DataLayerRecord] = Field(default_factory=list)
-    errors: List[str] = Field(default_factory=list)
-    page_title: Optional[str] = None
-    local_storage_events: int = 0
-    duration_ms: float = 0.0
-
-
-class DataLayerStartRequest(BaseModel):
-    """Request body to start a persistent browser dataLayer capture session."""
-
-    url: str
-    navigation_pause_ms: Optional[int] = Field(default=2500, ge=0, le=15000)
-    click_text: Optional[str] = None
-    click_selector: Optional[str] = None
-    headless: Optional[bool] = True
-
-
-class DataLayerStartResponse(BaseModel):
-    """A started browser session."""
-
-    session_id: str
-    url: str
-    status: str = "starting"
-    error: Optional[str] = None
-
-
-class DataLayerClickRequest(BaseModel):
-    """Request body to click a visible element by its text in the live page."""
-
-    session_id: str = ""
-    text: str = Field(min_length=1)
-
-
-class DataLayerClickResponse(BaseModel):
-    """Outcome of the automated click."""
-
-    session_id: str
-    clicked: bool = True
-    message: str = ""
-
-
-class DataLayerClickElementRequest(BaseModel):
-    """Request body to click an element via selector / text in the live page."""
-
-    session_id: str = ""
-    selector: Optional[str] = None
-    text: Optional[str] = None
-
-
-class DataLayerClickElementResponse(BaseModel):
-    """Result of clicking an element: whether it worked plus element info."""
-
-    session_id: str
-    clicked: bool = False
-    message: str = ""
-    element: Optional[Dict[str, Any]] = None
-
-
-class DataLayerClearRequest(BaseModel):
-    """Request body to clear the captured event history."""
-
-    session_id: str = ""
-
-
-class DataLayerCloseRequest(BaseModel):
-    """Request body to close the browser session."""
-
-    session_id: str = ""
-
-
-class DataLayerStatusResponse(BaseModel):
-    """Live browser-session status + captured records."""
-
-    session_id: str
-    status: str = "not_started"  # starting | open | capturing | error | closed
-    url: str = ""
-    current_url: str = ""
-    page_title: Optional[str] = None
-    data_layer_found: bool = False
-    instrumented: bool = False
-    events: List[DataLayerRecord] = Field(default_factory=list)
-    event_count: int = 0
-    started_at: Optional[str] = None
-    message: Optional[str] = None
-    error: Optional[str] = None
-
-
-class DataLayerExportResponse(BaseModel):
-    """Complete capture session as JSON (export / download)."""
-
-    session_id: str
-    started_at: Optional[str] = None
-    url: str = ""
-    current_url: str = ""
-    page_title: Optional[str] = None
-    data_layer_found: bool = False
-    events: List[DataLayerRecord] = Field(default_factory=list)
-    event_count: int = 0
 
 
 class SiteNode(BaseModel):
